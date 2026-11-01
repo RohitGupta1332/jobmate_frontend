@@ -1,5 +1,15 @@
 # React + Vite
 
+## Profile API
+
+Each profile section has its own Zustand store, and the stores call the Spring
+Boot API through `/api`. During local development, Vite proxies these requests
+to `http://localhost:8081`. Set
+`VITE_API_BASE_URL` when the API is hosted at a different origin.
+
+The profile endpoints require a JWT. Store the login response's `accessToken`
+in `localStorage` under the `accessToken` key before opening the profile.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:
