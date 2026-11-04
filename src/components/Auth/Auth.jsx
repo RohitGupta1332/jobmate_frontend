@@ -1,16 +1,37 @@
 
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Auth.css";
+import { useAuthStore } from "../../stores/auth/useAuthStore";
 
 export default function Auth() {
     const [isRegister, setIsRegister] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const navigate = useNavigate();
+    const isLoading = useAuthStore(state => state.isLoading);
+    const error = useAuthStore(state => state.error);
+    const success = useAuthStore(state => state.success);
+    const login = useAuthStore(state => state.login);
+    const register = useAuthStore(state => state.register);
+    const clearMessages = useAuthStore(state => state.clearMessages);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const credentials = {
+            username: formData.get("username").trim(),
+            password: formData.get("password"),
+        };
 
-        // Connect your Spring Boot authentication API here
-        console.log("Form submitted");
+        const authenticated = isRegister
+            ? await register(credentials)
+            : await login(credentials);
+        if (authenticated) navigate("/profile");
+    };
+
+    const switchMode = registerMode => {
+        clearMessages();
+        setIsRegister(registerMode);
     };
 
     return (
@@ -69,11 +90,14 @@ export default function Auth() {
                                 </div>
 
                                 <form onSubmit={handleSubmit}>
+                                    {error && <p className="auth-message error-message" role="alert">{error}</p>}
+                                    {success && <p className="auth-message success-message" role="status">{success}</p>}
                                     <div className="form-group">
                                         <label>Username</label>
                                         <input
-                                            type="email"
-                                            placeholder="you@example.com"
+                                            type="text"
+                                            name="username"
+                                            placeholder="Enter your username"
                                             required
                                         />
                                     </div>
@@ -87,6 +111,7 @@ export default function Auth() {
                                         <div className="password-input">
                                             <input
                                                 type={showPassword ? "text" : "password"}
+                                                name="password"
                                                 placeholder="Enter your password"
                                                 required
                                             />
@@ -100,14 +125,14 @@ export default function Auth() {
                                     </div>
 
 
-                                    <button className="submit-btn" type="submit">
-                                        Sign in <span>→</span>
+                                    <button className="submit-btn" type="submit" disabled={isLoading}>
+                                        {isLoading ? "Signing in..." : <>Sign in <span>→</span></>}
                                     </button>
                                 </form>
 
                                 <div className="switch-auth">
                                     Don't have an account?
-                                    <button onClick={() => setIsRegister(true)}>
+                                    <button type="button" onClick={() => switchMode(true)}>
                                         Create account
                                     </button>
                                 </div>
@@ -122,12 +147,14 @@ export default function Auth() {
                                 </div>
 
                                 <form onSubmit={handleSubmit}>
-                                    
+                                    {error && <p className="auth-message error-message" role="alert">{error}</p>}
+                                    {success && <p className="auth-message success-message" role="status">{success}</p>}
                                     <div className="form-group">
                                         <label>Username</label>
                                         <input
-                                            type="email"
-                                            placeholder="you@example.com"
+                                            type="text"
+                                            name="username"
+                                            placeholder="Enter your username"
                                             required
                                         />
                                     </div>
@@ -137,6 +164,7 @@ export default function Auth() {
                                         <div className="password-input">
                                             <input
                                                 type={showPassword ? "text" : "password"}
+                                                name="password"
                                                 placeholder="Create a password"
                                                 minLength={8}
                                                 required
@@ -151,14 +179,14 @@ export default function Auth() {
                                     </div>
 
 
-                                    <button className="submit-btn" type="submit">
-                                        Create account <span>→</span>
+                                    <button className="submit-btn" type="submit" disabled={isLoading}>
+                                        {isLoading ? "Creating account..." : <>Create account <span>→</span></>}
                                     </button>
                                 </form>
 
                                 <div className="switch-auth">
                                     Already have an account?
-                                    <button onClick={() => setIsRegister(false)}>
+                                    <button type="button" onClick={() => switchMode(false)}>
                                         Sign in
                                     </button>
                                 </div>

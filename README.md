@@ -7,8 +7,10 @@ Boot API through `/api`. During local development, Vite proxies these requests
 to `http://localhost:8081`. Set
 `VITE_API_BASE_URL` when the API is hosted at a different origin.
 
-The profile endpoints require a JWT. Store the login response's `accessToken`
-in `localStorage` under the `accessToken` key before opening the profile.
+Login and registration return an access token. The auth store keeps the token,
+token type, username, and expiration in `localStorage`; profile requests send
+the token using the `Authorization: Bearer` header. Signing out clears the
+stored session.
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

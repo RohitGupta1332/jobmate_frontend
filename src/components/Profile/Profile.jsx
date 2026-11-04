@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Profile.css";
 import {
     initialEducationData,
@@ -13,6 +14,8 @@ import { useSkillsStore } from "../../stores/profile/useSkillsStore";
 import { useProjectsStore } from "../../stores/profile/useProjectsStore";
 import { useJobPreferencesStore } from "../../stores/profile/useJobPreferencesStore";
 import { useAdditionalInfoStore } from "../../stores/profile/useAdditionalInfoStore";
+import { useResumeStore } from "../../stores/profile/useResumeStore";
+import { useAuthStore } from "../../stores/auth/useAuthStore";
 
 const sections = [
     { id: "overview", label: "Overview", icon: "⌂" },
@@ -27,9 +30,9 @@ const sections = [
 ];
 
 function Profile() {
+    const navigate = useNavigate();
     const [activeSection, setActiveSection] = useState("overview");
     const [skillInput, setSkillInput] = useState("");
-    const [resume, setResume] = useState(null);
     const personalStore = usePersonalStore();
     const educationStore = useEducationStore();
     const experienceStore = useExperienceStore();
@@ -37,6 +40,8 @@ function Profile() {
     const projectsStore = useProjectsStore();
     const preferencesStore = useJobPreferencesStore();
     const additionalStore = useAdditionalInfoStore();
+    const resumeStore = useResumeStore();
+    const logout = useAuthStore(state => state.logout);
 
     const personal = personalStore.data;
     const education = educationStore.data;
@@ -46,7 +51,7 @@ function Profile() {
     const preferences = preferencesStore.data;
     const additional = additionalStore.data;
     const data = {
-        personal, education, experience, skills, projects, preferences, additional, resume,
+        personal, education, experience, skills, projects, preferences, additional,
     };
     const stores = {
         personal: personalStore,
@@ -56,6 +61,7 @@ function Profile() {
         projects: projectsStore,
         preferences: preferencesStore,
         additional: additionalStore,
+        resume: resumeStore,
     };
     const isLoading = [
         personalStore.isLoading,
@@ -151,7 +157,7 @@ function Profile() {
             data.skills.length > 0,
             data.projects[0]?.name,
             data.preferences.jobTitle,
-            data.resume,
+            resumeStore.resumes.length > 0,
         ];
 
         const completed = fields.filter(Boolean).length;
@@ -319,9 +325,9 @@ function Profile() {
                             v => updateArray("education", index, "college", v),
                             "Institution name")}
 
-                        {renderField("Location ID", edu.location,
+                        {renderField("Location", edu.location,
                             v => updateArray("education", index, "location", v),
-                            "Numeric location ID", "number")}
+                            "City, State, Country", "text")}
 
                         {renderField("Start year", edu.startYear,
                             v => updateArray("education", index, "startYear", v),
@@ -651,43 +657,65 @@ function Profile() {
             <div className="profile-card">
                 <h3>Your primary resume</h3>
                 <p className="card-description">
-                    Resume uploads are not connected to the API yet. This
-                    selection is kept only until you leave the page.
+                    Upload a PDF file. Maximum 5 MB.
                 </p>
 
                 <label className="resume-upload">
                     <div className="upload-icon">↑</div>
-                    <h3>Upload your resume</h3>
+                    <h3>{resumeStore.isUploading ? "Uploading..." : "Upload your resume"}</h3>
                     <p>Drag and drop or click to browse</p>
-                    <span>PDF or DOCX · Maximum 5 MB</span>
+                    <span>PDF · Maximum 5 MB</span>
                     <input
                         type="file"
-                        accept=".pdf,.doc,.docx"
+                        accept=".pdf,application/pdf"
+                        disabled={resumeStore.isUploading}
                         onChange={e => {
                             const file = e.target.files?.[0];
                             if (!file) return;
-                            if (file.size > 5 * 1024 * 1024) {
-                                alert("File must be smaller than 5 MB");
+                            if (file.type !== "application/pdf" &&
+                                !file.name.toLowerCase().endsWith(".pdf")) {
+                                resumeStore.setError("Please select a PDF file.");
                                 e.target.value = "";
                                 return;
                             }
-                            setResume(file);
+                            if (file.size > 5 * 1024 * 1024) {
+                                resumeStore.setError("File must be smaller than 5 MB.");
+                                e.target.value = "";
+                                return;
+                            }
+                            resumeStore.upload(file);
+                            e.target.value = "";
                         }}
                     />
                 </label>
 
-                {data.resume && (
-                    <div className="uploaded-file">
+                {resumeStore.resumes.map(resume => (
+                    <div className="uploaded-file" key={resume.id}>
                         <span>▤</span>
                         <div>
-                            <strong>{data.resume.name}</strong>
-                            <p>{(data.resume.size / 1024).toFixed(1)} KB</p>
+                            <strong>{resume.fileName}</strong>
+                            {resume.fileUrl && (
+                                <p>
+                                    <a href={resume.fileUrl} target="_blank" rel="noreferrer">
+                                        View resume
+                                    </a>
+                                </p>
+                            )}
                         </div>
-                        <button className="remove-btn"
-                            onClick={() => setResume(null)}>
-                            Remove
+                        <button
+                            className="remove-btn"
+                            onClick={() => resumeStore.remove(resume.id)}
+                            disabled={resumeStore.deletingId === resume.id}
+                        >
+                            {resumeStore.deletingId === resume.id ? "Deleting..." : "Remove"}
                         </button>
                     </div>
+                ))}
+
+                {resumeStore.resumes.length === 0 && (
+                    <p className="card-description">
+                        No resumes uploaded during this session.
+                    </p>
                 )}
             </div>
         </>
@@ -817,7 +845,10 @@ function Profile() {
                     </div>
 
                     <button className="sidebar-logout"
-                        onClick={() => console.log("Logout")}>
+                        onClick={() => {
+                            logout();
+                            navigate("/");
+                        }}>
                         ↗ Sign out
                     </button>
                 </div>
@@ -871,7 +902,7 @@ function Profile() {
                                 <button
                                     className="submit-btn save-profile-btn"
                                     onClick={saveProfile}
-                                    disabled={isLoading || isSaving}
+                                    disabled={isLoading || isSaving || resumeStore.isUploading}
                                 >
                                     {isSaving ? "Saving..." : "Save changes →"}
                                 </button>

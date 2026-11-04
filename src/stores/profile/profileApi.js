@@ -1,21 +1,26 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 export async function profileRequest(path, { method = "GET", body } = {}) {
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-        throw new Error(
-            "Authentication required. Sign in and store the JWT as accessToken before loading your profile."
-        );
+    const accessToken = localStorage.getItem("accessToken");
+    if (!accessToken) {
+        throw new Error("Authentication required. Sign in before accessing your profile.");
     }
+
+    const isFormData = body instanceof FormData;
+    const headers = {
+        Accept: "application/json",
+        Authorization: `${localStorage.getItem("tokenType") || "Bearer"} ${accessToken}`,
+        ...(body === undefined || isFormData
+            ? {}
+            : { "Content-Type": "application/json" }),
+    };
 
     const response = await fetch(`${API_BASE_URL}${path}`, {
         method,
-        headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-            ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-        },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        headers,
+        ...(body === undefined
+            ? {}
+            : { body: isFormData ? body : JSON.stringify(body) }),
     });
 
     const responseText = await response.text();

@@ -588,6 +588,15 @@
     margin-top: 5px;
 }
 
+.uploaded-file a {
+    color: #a78bfa;
+    text-decoration: none;
+}
+
+.uploaded-file a:hover {
+    text-decoration: underline;
+}
+
 /* OVERVIEW */
 
 .profile-welcome {
